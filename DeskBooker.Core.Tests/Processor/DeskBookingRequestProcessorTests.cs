@@ -1,4 +1,6 @@
-﻿using DeskBooker.Core.Domain;
+﻿using DeskBooker.Core.DataInterface;
+using DeskBooker.Core.Domain;
+using Moq;
 using System;
 using Xunit;
 
@@ -7,6 +9,7 @@ namespace DeskBooker.Core.Processor
     public class DeskBookingRequestProcessorTests
     {
         private readonly DeskBookingRequest _request;
+        private readonly Mock<IDeskBookingRepository> _deskBookingRepositoryMock;
         private readonly DeskBookingRequestProcessor _processor;
 
         public DeskBookingRequestProcessorTests()
@@ -18,7 +21,8 @@ namespace DeskBooker.Core.Processor
                 Email = "asd@icloud.com",
                 Date = new DateTime(2020, 1, 28)
             };
-            _processor = new DeskBookingRequestProcessor();
+            _deskBookingRepositoryMock = new Mock<IDeskBookingRepository>();
+            _processor = new DeskBookingRequestProcessor(_deskBookingRepositoryMock.Object);
         }
         [Fact]
         public void ShouldReturnDeskBookingResultWithRequestValues()
@@ -37,6 +41,24 @@ namespace DeskBooker.Core.Processor
             var ex = Assert.Throws<ArgumentNullException>(() => _processor.BookDesk(null));
 
             Assert.Equal("request", ex.ParamName);
+        }
+        [Fact]
+        public void ShouldSaveDeskBooking()
+        {
+            DeskBooking savedDeskBooking = null;
+            _deskBookingRepositoryMock.Setup(x => x.Save(It.IsAny<DeskBooking>())).Callback<DeskBooking>(deskBooking =>
+              {
+                  savedDeskBooking = deskBooking;
+              });
+
+            _processor.BookDesk(_request);
+
+            _deskBookingRepositoryMock.Verify(x => x.Save(It.IsAny<DeskBooking>()), Times.Once);
+            Assert.NotNull(savedDeskBooking);
+            Assert.Equal(_request.FirstName, savedDeskBooking.FirstName);
+            Assert.Equal(_request.LastName, savedDeskBooking.LastName);
+            Assert.Equal(_request.Email, savedDeskBooking.Email);
+            Assert.Equal(_request.Date, savedDeskBooking.Date);
         }
     }
 }
